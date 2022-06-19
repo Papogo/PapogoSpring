@@ -1,8 +1,10 @@
 package com.papo.spring;
 
 
+import java.beans.Introspector;
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,6 +58,12 @@ public class PapoApplicationContext {
                                 Component component = clazz.getAnnotation(Component.class);
                                 String beanName = component.value();
 
+                                //扫描beanname ，没配置默认null空指针
+                                //decapitalize(String name){}  name前两个字母大写返回name，若不是 首字母小写
+                                if (beanName.equals("")) {
+                                    beanName = Introspector.decapitalize(clazz.getSimpleName());
+                                }
+
                                 BeanDefinition beanDefinition = new BeanDefinition();
                                 beanDefinition.setType(clazz);
                                 //bean判断单例还是多例，查看类里是否有Scope注解
@@ -95,9 +103,33 @@ public class PapoApplicationContext {
     }
 
     private Object createBean(String beanName, BeanDefinition beanDefinition){
+
         Class clazz = beanDefinition.getType();
+
         try {
             Object instance = clazz.getConstructor().newInstance();
+
+            //简单依赖注入 默认byTyppe找不到用byName
+            for (Field f : clazz.getDeclaredFields()) {
+                if (f.isAnnotationPresent(Autowired.class)) {
+                    f.setAccessible(true);
+                    f.set(instance, getBean(f.getName()));
+                }
+            }
+
+            // Aware回调（直接使用）
+            if (instance instanceof BeanNameAware){
+                ((BeanNameAware)instance).setBeanName(beanName);
+            }
+
+            //初始化（调用方法）
+            if (instance instanceof InitializingBean){
+                ((InitializingBean)instance).afterPropertiesSet();
+            }
+
+            //BeanPostProcesser(bean后置处理器)  初始化后 AOP
+
+
 
             return instance;
 
