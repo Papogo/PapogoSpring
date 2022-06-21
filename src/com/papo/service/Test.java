@@ -7,8 +7,9 @@ public class Test {
         //new bean
         PapoApplicationContext ApplicationContext = new PapoApplicationContext(AppConfig.class);
 
-        UserService userService = (UserService) ApplicationContext.getBean("userService");
+        UserInterface userService = (UserInterface) ApplicationContext.getBean("userService");
         userService.test();
+
 
 
     }

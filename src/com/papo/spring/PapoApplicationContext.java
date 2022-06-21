@@ -7,6 +7,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PapoApplicationContext {
@@ -17,6 +18,7 @@ public class PapoApplicationContext {
     //单例池map
     private ConcurrentHashMap<String, Object> singletonObjects = new ConcurrentHashMap<>();
 
+    private ArrayList<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
 
     // Spring容器
     public PapoApplicationContext(Class configClass) {
@@ -55,6 +57,14 @@ public class PapoApplicationContext {
                             //判断是否有Component注解，有就是bean 没有就不是bean
                             if (clazz.isAnnotationPresent(Component.class)) {
 
+                                //isAssignableFrom()方法判断是否实现了前面class的接口
+                                //if判断当前包下Bean的类型是不是BeanPostProcessor
+                                if (BeanPostProcessor.class.isAssignableFrom(clazz)){
+                                    BeanPostProcessor instance = (BeanPostProcessor) clazz.newInstance();
+                                    beanPostProcessorList.add(instance);
+
+                                }
+
                                 Component component = clazz.getAnnotation(Component.class);
                                 String beanName = component.value();
 
@@ -80,6 +90,10 @@ public class PapoApplicationContext {
                             }
 
                         } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        } catch (InstantiationException e) {
+                            e.printStackTrace();
+                        } catch (IllegalAccessException e) {
                             e.printStackTrace();
                         }
 
@@ -121,6 +135,10 @@ public class PapoApplicationContext {
             if (instance instanceof BeanNameAware){
                 ((BeanNameAware)instance).setBeanName(beanName);
             }
+            //初始化之前
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessBeforeInitialization(beanName, instance);
+            }
 
             //初始化（调用方法）
             if (instance instanceof InitializingBean){
@@ -128,6 +146,11 @@ public class PapoApplicationContext {
             }
 
             //BeanPostProcesser(bean后置处理器)  初始化后 AOP
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessAfterInitialization(beanName, instance);
+            }
+
+
 
 
 
